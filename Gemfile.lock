@@ -2,14 +2,12 @@ PATH
   remote: .
   specs:
     standard_procedure_fabrik (0.1.0)
-      activemodel (>= 8.0.1)
+      activesupport (>= 8.0.1)
       standard-procedure-plumbing
 
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (8.0.1)
-      activesupport (= 8.0.1)
     activesupport (8.0.1)
       base64
       benchmark (>= 0.3)
