@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     standard_procedure_fabrik (0.1.0)
-      activesupport (>= 8.0.1)
+      activesupport (>= 1.0.0)
       standard-procedure-plumbing
 
 GEM

@@ -6,11 +6,6 @@ module Fabrik
   require "delegate"
 
   class Database
-    def initialize
-      @blueprints = {}
-      @records = {}
-    end
-
     def configure(&block) = instance_eval(&block)
 
     def register(klass, as: nil, &block)
@@ -34,6 +29,11 @@ module Fabrik
     def method_missing(method_name, *, &block) = (klass = class_from(method_name)).nil? ? super : register(klass)
 
     def respond_to_missing?(method_name, include_private = false) = !class_from(method_name).nil? || super
+
+    def initialize
+      @blueprints = {}
+      @records = {}
+    end
 
     private def blueprint_name_for(klass) = klass.name.split("::").map(&:underscore).join("_").pluralize
 
@@ -72,12 +72,12 @@ module Fabrik
   class Proxy < SimpleDelegator
     def create(label = nil, **attributes)
       (@blueprint.search_keys.any? ? find_or_create_record(attributes) : create_record(attributes)).tap do |record|
-        @records[label] = record if label
+        @records[label.to_sym] = record if label
         @blueprint.call_after_create(record, @db)
       end
     end
 
-    def [](label) = @records[label]
+    def [](label) = @records[label.to_sym]
 
     def initialize(db, blueprint)
       @db = db
@@ -94,10 +94,7 @@ module Fabrik
 
     private def label = @blueprint.klass.name.split("::").map(&:underscore).join("_").pluralize
 
-    private def find_or_create_record(attributes)
-      search_attributes = attributes.slice(*search_keys)
-      klass.find_by(**search_attributes) || create_record(attributes)
-    end
+    private def find_or_create_record(attributes) = klass.find_by(**attributes.slice(*search_keys)) || create_record(attributes)
 
     private def create_record(attributes) = klass.create(**attributes_with_defaults(attributes))
 
