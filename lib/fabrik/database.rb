@@ -45,7 +45,7 @@ module Fabrik
     private def class_from(method_name)
       klass = nil
       name = method_name.to_s.singularize.classify
-      name = name.sub!(/(?<=[a-z])(?=[A-Z])/, "::") until name.nil? or (klass = name.safe_constantize)
+      name = name.sub!(/(?<=[a-z])(?=[A-Z])/, "::") until name.nil? || (klass = name.safe_constantize)
       klass
     end
   end
