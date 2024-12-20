@@ -147,13 +147,13 @@ Add `standard_procedure_fabrik` to your `Gemfile`
 bundle add standard_procedure_fabrik
 ```
 
-If you're only using it for tests, add it to your `test` group.  If you're using it for seeds, add it with all your other gems.  While you're at it, add `faker` as well - at the very least, it will probably make you smile with some of the stuff it generates for your test data.  
+If you're only using it for tests, add it to your `test` group.  If you're using it for seeds, add it with all your other gems.  While you're at it, add [Faker](https://github.com/faker-ruby/faker) as well - at the very least, it will probably make you smile with some of the stuff it generates for your test data.  
 
 ## Usage
 
 ### Localised (for tests)
 
-Create an instance of a [Fabrik::Database], configure it and use it.  
+Create an instance of a [Fabrik::Database](/lib/fabrik/database.rb), configure it and use it.  
 
 ```ruby
 db = Fabrik::Database.new 
@@ -195,11 +195,11 @@ end
 Fabrik.db.people.create :alice, first_name: "Alice"
 ```
 
-Watch out - because this uses a global instance, it's not thread-safe.  That's not an issue if you're just using it for database seeds, but it might be if you're using it throughout your application.  In which case, I recommend doing all the configuration in an `config/initializer` - after it's been configured it will be safe to call from whichever thread you happen to be in.  
+Watch out - because this uses a global instance, it's not thread-safe.  That's not an issue if you're just using it for database seeds or in most test runners(single-threaded or parallelised with multiple processes).  But it *might* cause problems if you're using threads to parallelise your tests, or you're reconfiguring while your application is running.  
 
 ## Development
 
-Important note: this gem is not under the MIT Licence - it's under the [LGPL](/LICENSE).  This may or may not make it suitable for your use.  I have reasons for this, which don't belong in a README, but the net result is, this library is open-source, it's free software, but if you change it in any way, you have to stick to those same rules.  
+Important note: this gem is not under the MIT Licence - it's under the [LGPL](/LICENSE).  This may or may not make it suitable for your use.  I have reasons for this, which don't belong in a README.  But the net result is, this library is open-source, it's free software and you can license *your own* code any way you want.  But if you change *this code*, you have to publish those changes under the same rules.  
 
 So, fork the repo, bundle install, add RSpecs for the changes you want to make and `rake spec` to run the tests. Then send me a pull request.  You can also run `bin/console` for an interactive prompt that will allow you to experiment.
 
