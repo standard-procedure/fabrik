@@ -1,10 +1,9 @@
 # frozen_string_literal: true
 
 require "active_support/core_ext/string"
+require "delegate"
 
 module Fabrik
-  require "delegate"
-
   class Database
     def configure(&block) = instance_eval(&block)
 
