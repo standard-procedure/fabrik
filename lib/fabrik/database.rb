@@ -43,9 +43,10 @@ module Fabrik
     end
 
     private def class_from(method_name)
-      Object.const_get(method_name.to_s.classify)
-    rescue NameError
-      nil
+      klass = nil
+      name = method_name.to_s.singularize.classify
+      name = name.sub!(/(?<=[a-z])(?=[A-Z])/, "::") until name.nil? or (klass = name.safe_constantize)
+      klass
     end
   end
 
@@ -89,8 +90,6 @@ module Fabrik
     private def klass = @blueprint.klass
 
     private def default_attributes = @blueprint.default_attributes
-
-    private def label = @blueprint.klass.name.split("::").map(&:underscore).join("_").pluralize
 
     private def find_or_create_record(attributes) = klass.find_by(**attributes.slice(*search_keys)) || create_record(attributes)
 

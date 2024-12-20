@@ -12,6 +12,14 @@ module Fabrik
   class Machine
   end
 
+  module ::Intergalactic
+    class Spaceship
+    end
+  end
+
+  class ::InterplanetarySpaceship
+  end
+
   RSpec.describe Fabrik::Database do
     subject(:db) { described_class.new }
 
@@ -97,6 +105,17 @@ module Fabrik
 
           expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
           expect(db.people[:alice]).to eq alice
+        end
+
+        it "handles different types of class naming" do
+          allow(::Intergalactic::Spaceship).to receive(:create).and_return(double("Intergalactic::Spaceship", id: 1))
+          allow(::InterplanetarySpaceship).to receive(:create).and_return(double("InterplanetarySpaceship", id: 1))
+
+          db.intergalactic_spaceships.create :discovery
+          db.interplanetary_spaceships.create :enterprise
+
+          expect(::Intergalactic::Spaceship).to have_received(:create)
+          expect(::InterplanetarySpaceship).to have_received(:create)
         end
       end
 
