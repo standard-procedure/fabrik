@@ -32,7 +32,7 @@ And, because tests are documentation, you want that setup to be there, next to t
 
 Fabrik does this.  
 
-## Configuration
+## Configuration
 
 Fabrik allows you to configure three aspects of how you create your objects.  
 
@@ -182,8 +182,6 @@ end
 In a minitest ... I don't know, I've not used minitest in years but I'm sure it's easy enough.  
 
 ### Global (for seeds and generally creating stuff)
-
-(OK - this isn't implemented quite yet, but this is how it's going to work)
 
 Configure the global `Fabrik::Database`, then use it.  
 
