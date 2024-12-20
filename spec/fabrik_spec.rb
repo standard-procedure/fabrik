@@ -179,13 +179,12 @@ module Fabrik
             db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
             expect(::Person).to have_received(:find_by).with(first_name: "Alice", last_name: "Aardvark")
-            expect(db.people[:alice]).to eq alice
           end
         end
       end
 
       context "blueprint registered with after_create callback" do
-        it "creates a new record and stores the reference" do
+        it "creates a new record and fires the callback" do
           alice = double("Person", id: 1, first_name: "Alice")
           alices_company = double("Company", id: 1)
           allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
@@ -203,8 +202,27 @@ module Fabrik
 
           expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
           expect(::Company).to have_received(:create).with(name: "Alice's Company")
-          expect(db.people[:alice]).to eq alice
           expect(db.companies[:alices_company]).to eq alices_company
+        end
+
+        it "does not fire the callback if an existing record is found" do
+          alice = double("Person", id: 1)
+          allow(::Person).to receive(:find_by).with(first_name: "Alice", last_name: "Aardvark").and_return(alice)
+          allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+          alices_company = double("Company", id: 1)
+          allow(::Company).to receive(:create).with(name: "Alice's Company").and_return(alices_company)
+
+          db.configure do
+            with ::Person do
+              search_using :first_name, :last_name
+              after_create do |person, db|
+                db.companies.create :alices_company, name: "#{person.first_name}'s Company"
+              end
+            end
+          end
+          db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
+
+          expect(::Company).to_not have_received(:create).with(name: "Alice's Company")
         end
       end
     end

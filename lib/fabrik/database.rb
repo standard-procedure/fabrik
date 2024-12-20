@@ -73,7 +73,6 @@ module Fabrik
     def create(label = nil, **attributes)
       (@blueprint.search_keys.any? ? find_or_create_record(attributes) : create_record(attributes)).tap do |record|
         @records[label.to_sym] = record if label
-        @blueprint.call_after_create(record, @db)
       end
     end
 
@@ -96,7 +95,11 @@ module Fabrik
 
     private def find_or_create_record(attributes) = klass.find_by(**attributes.slice(*search_keys)) || create_record(attributes)
 
-    private def create_record(attributes) = klass.create(**attributes_with_defaults(attributes))
+    private def create_record(attributes)
+      klass.create(**attributes_with_defaults(attributes)).tap do |record|
+        @blueprint.call_after_create(record, @db)
+      end
+    end
 
     private def attributes_with_defaults attributes
       attributes_to_generate = default_attributes.keys - attributes.keys
