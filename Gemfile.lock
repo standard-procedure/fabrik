@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    standard_procedure_fabrik (0.1.0)
+    standard_procedure_fabrik (0.1.1)
       activesupport (>= 6.0.0)
       standard-procedure-plumbing
 
