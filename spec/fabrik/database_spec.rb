@@ -203,6 +203,45 @@ module Fabrik
         end
       end
 
+      context "blueprint registered with default attributes and search keys" do
+        context "no record found" do
+          it "creates a new record and stores the refeence" do
+            alice = double("Person", id: 1)
+            allow(::Person).to receive(:find_by).with(first_name: "Alice", last_name: "Aardvark").and_return(nil)
+            allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+
+            db.configure do
+              with ::Person do
+                defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { "Aardvark" }, age: ->(db) { 33 }
+                search_using :first_name, :last_name
+              end
+            end
+            db.people.create :alice, first_name: "Alice", age: 25
+
+            expect(::Person).to have_received(:find_by).with(first_name: "Alice", last_name: "Aardvark")
+            expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
+            expect(db.people[:alice]).to eq alice
+          end
+        end
+
+        context "existing record found" do
+          it "returns the existing record without updating it" do
+            alice = double("Person", id: 1)
+            allow(::Person).to receive(:find_by).with(first_name: "Alice", last_name: "Aardvark").and_return(alice)
+
+            db.configure do
+              with ::Person do
+                defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { "Aardvark" }, age: ->(db) { 33 }
+                search_using :first_name, :last_name
+              end
+            end
+            db.people.create :alice, first_name: "Alice", age: 25
+
+            expect(::Person).to have_received(:find_by).with(first_name: "Alice", last_name: "Aardvark")
+          end
+        end
+      end
+
       context "blueprint registered with after_create callback" do
         it "creates a new record and fires the callback" do
           alice = double("Person", id: 1, first_name: "Alice")

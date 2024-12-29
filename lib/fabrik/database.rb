@@ -91,7 +91,10 @@ module Fabrik
 
     private def default_attributes = @blueprint.default_attributes
 
-    private def find_or_create_record(attributes) = find_record(attributes) || create_record(attributes)
+    private def find_or_create_record(attributes)
+      attributes = attributes_with_defaults(attributes)
+      find_record(attributes) || create_record(attributes)
+    end
 
     private def find_record(attributes) = attributes.slice(*search_keys).empty? ? nil : klass.find_by(**attributes.slice(*search_keys))
 
