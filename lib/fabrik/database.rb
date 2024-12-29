@@ -91,7 +91,9 @@ module Fabrik
 
     private def default_attributes = @blueprint.default_attributes
 
-    private def find_or_create_record(attributes) = klass.find_by(**attributes.slice(*search_keys)) || create_record(attributes)
+    private def find_or_create_record(attributes) = find_record(attributes) || create_record(attributes)
+
+    private def find_record(attributes) = attributes.slice(*search_keys).empty? ? nil : klass.find_by(**attributes.slice(*search_keys))
 
     private def create_record(attributes)
       klass.create(**attributes_with_defaults(attributes)).tap do |record|
@@ -101,7 +103,7 @@ module Fabrik
 
     private def attributes_with_defaults attributes
       attributes_to_generate = default_attributes.keys - attributes.keys
-      attributes_to_generate.each_with_object({}) { |name, generated_attributes| generated_attributes[name] = default_attributes[name].call }.merge(attributes)
+      attributes_to_generate.each_with_object({}) { |name, generated_attributes| generated_attributes[name] = default_attributes[name].call(@db) }.merge(attributes)
     end
   end
 end

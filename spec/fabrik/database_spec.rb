@@ -58,7 +58,7 @@ module Fabrik
         it "records the default attributes for the class" do
           db.configure do
             with ::Person do
-              defaults first_name: -> { "Alice" }, last_name: -> { "Aardvark" }, age: -> { rand(18..57) }
+              defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { "Aardvark" }, age: ->(db) { rand(18..57) }
             end
           end
 
@@ -156,7 +156,7 @@ module Fabrik
 
           db.configure do
             with ::Person do
-              defaults first_name: -> { "Alice" }, last_name: -> { "Aardvark" }, age: -> { 33 }
+              defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { "Aardvark" }, age: ->(db) { 33 }
             end
           end
           db.people.create :arthur, first_name: "Arthur"
@@ -166,7 +166,7 @@ module Fabrik
         end
       end
 
-      context "blueprint registered with unique keys" do
+      context "blueprint registered with search keys" do
         context "no record found" do
           it "creates a new record and stores the refeence" do
             alice = double("Person", id: 1)
