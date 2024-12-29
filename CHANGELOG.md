@@ -1,3 +1,7 @@
+## [0.1.2] - 2024-12-29
+
+- Bug fix - when using defaults and search keys together
+
 ## [0.1.1] - 2024-12-29
 
 - Pass the database through to defaults (so you can create dependent models)
