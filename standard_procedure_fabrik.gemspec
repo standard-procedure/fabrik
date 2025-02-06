@@ -33,5 +33,4 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   spec.add_dependency "activesupport", ">= 6.0.0"
-  spec.add_dependency "standard-procedure-plumbing"
 end
