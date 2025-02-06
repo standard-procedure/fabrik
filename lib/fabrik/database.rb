@@ -2,6 +2,7 @@
 
 require "active_support/core_ext/string"
 require "delegate"
+require "ostruct"
 
 module Fabrik
   class Database
@@ -72,7 +73,7 @@ module Fabrik
       @klass = klass
       @default_attributes = {}
       @unique_keys = []
-      instance_eval(&block) if block_given?
+      instance_eval(&block) unless block.nil?
     end
   end
 
@@ -117,7 +118,9 @@ module Fabrik
 
     private def attributes_with_defaults attributes
       attributes_to_generate = default_attributes.keys - attributes.keys
-      attributes_to_generate.each_with_object({}) { |name, generated_attributes| generated_attributes[name] = default_attributes[name].call(@db) }.merge(attributes)
+      attributes_to_generate.each_with_object(OpenStruct.new(**attributes)) do |name, generated_attributes|
+        generated_attributes[name] = default_attributes[name].nil? ? nil : @db.instance_exec(generated_attributes, &default_attributes[name])
+      end.to_h.merge(attributes)
     end
   end
 end

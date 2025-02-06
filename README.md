@@ -48,7 +48,7 @@ So Fabrik allows you to set default attributes; then when you're creating a mode
   with Person do
     first_name { Faker::Name.first_name }
     last_name { Faker::Name.last_name }
-    email { |person| Faker::Internet.email(name: person.first_name.downcase) }
+    email { |person| Faker::Internet.email(name: person.first_name) }
     age 33
   end
 end
@@ -60,6 +60,12 @@ puts @alice.last_name # => Hermann
 puts @alice.email # => alice@some-domain.com
 puts @alice.age # => 33
 ```
+
+When specifying a default, you can either use a fixed value - for example `age 33`.  
+
+Or you can pass a block and use a dynamic value - for example `last_name { Faker::Name.last_name }`.
+
+If you pass a block, you can also access any attributes that have been generated so far - in this case we are accessing `person.first_name`.  Whilst attributes that were supplied in the call to `create` are generally safe, relying on values that were generated dynamically may not be.  The default value generators _should_ be called in the order of declaration, giving you access to dynamic values declared beforehand - but this is not guaranteed.  It's generally safer to avoid references when generating default values.  
 
 ### Uniqueness
 

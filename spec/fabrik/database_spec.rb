@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "faker"
 
 module Fabrik
   class ::Person
@@ -180,18 +181,19 @@ module Fabrik
       context "blueprint registered with default attributes" do
         it "uses the blueprint to create a new record with default values and stores the reference" do
           arthur = double("Person", id: 1)
-          allow(::Person).to receive(:create).with(first_name: "Arthur", last_name: "Aardvark", age: 33).and_return(arthur)
+          allow(::Person).to receive(:create).with(first_name: "Arthur", last_name: "Aardvark", age: 33, email: kind_of(String)).and_return(arthur)
 
           db.configure do
             with ::Person do
               first_name "Alice"
               last_name "Aardvark"
               age 33
+              email { |person| Faker::Internet.email(name: "#{person.first_name} #{person.last_name}") }
             end
           end
           db.people.create :arthur, first_name: "Arthur"
 
-          expect(::Person).to have_received(:create).with(first_name: "Arthur", last_name: "Aardvark", age: 33)
+          expect(::Person).to have_received(:create).with(first_name: "Arthur", last_name: "Aardvark", age: 33, email: kind_of(String))
           expect(db.people.arthur).to eq arthur
         end
       end

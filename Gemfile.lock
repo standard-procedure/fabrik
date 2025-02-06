@@ -3,6 +3,7 @@ PATH
   specs:
     standard_procedure_fabrik (0.2.0)
       activesupport (>= 6.0.0)
+      ostruct
 
 GEM
   remote: https://rubygems.org/
