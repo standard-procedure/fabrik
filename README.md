@@ -43,16 +43,21 @@ When you're writing a spec, you probably only care about one aspect of the model
 So Fabrik allows you to set default attributes; then when you're creating a model, you can specify the ones you're interested in and ignore all the rest.
 
 ```ruby
-db.configure do
+@db = Fabrik.db
+@db.configure do
   with Person do
-    defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { Faker::Name.last_name }, age: ->(db) { 33 }
+    first_name { Faker::Name.first_name }
+    last_name { Faker::Name.last_name }
+    email { |person| Faker::Internet.email(name: person.first_name.downcase) }
+    age 33
   end
 end
 
-@alice = db.people.create last_name: "Anteater"
+@alice = @db.people.create first_name: "Alice"
 
 puts @alice.first_name # => Alice
-puts @alice.last_name # => Anteater
+puts @alice.last_name # => Hermann
+puts @alice.email # => alice@some-domain.com
 puts @alice.age # => 33
 ```
 
@@ -63,16 +68,17 @@ When you've got a database packed with existing data, you don't want your seeds 
 So Fabrik lets you define what makes a model unique.  Then when you create it, it checks for an existing record first and only creates a new one if the original is not found.
 
 ```ruby
-db.configure do
+@db.configure do
   with Person do
-    search_using :email
+    unique :email
   end
 end
-@alice = db.people.create first_name: "Alice", last_name: "Aardvark", email: "alice@example.com"
-@zac = db.people.create first_name: "Zac", last_name: "Zebra", email: "alice@example.com"
+@alice = @db.people.create first_name: "Alice", last_name: "Aardvark", email: "alice@example.com"
+@zac = @db.people.create first_name: "Zac", last_name: "Zebra", email: "alice@example.com"
 
 @alice == @zac # => true
 puts @zac.first_name # => Alice
+puts @zac.last_name # => Aardvark
 ```
 
 ### Special processing
@@ -82,18 +88,18 @@ Some models are special.  They can't live on their own.  Their invariants won't 
 So Fabrik lets you define specific processing that happens after a new record is created.
 
 ```ruby
-db.configure do
+@db.configure do
   with Company do
-    defaults name: -> { Faker::Company.name }
-    after_create do |company, db|
-      db.employees.create company: company, role: "CEO"
-    end
+    name { Faker::Company.name }
+    after_create { |company| employees.create company: company, role: "CEO" }
   end
   with Employee do
-    defaults first_name: -> { Faker::Name.first_name }, last_name: -> { Faker::Name.last_name }, role: -> { "Cleaner" }
+    first_name { Faker::Name.first_name }
+    last_name  { Faker::Name.last_name }
+    role "Cleaner"
   end
 end
-db.companies.create name: "MegaCorp"
+@db.companies.create name: "MegaCorp"
 puts Company.find_by(name: "MegaCorp").employees.size # => 1
 ```
 
@@ -104,9 +110,9 @@ You've created a load of models.  And you need to reference them to create more 
 So Fabrik let's you give your models a label.  And then refer back to that model using the label.
 
 ```ruby
-db.people.create :alice, first_name: "Alice"
+@db.people.create :alice, first_name: "Alice"
 
-puts db.people[:alice] # => Alice
+puts @db.people.alice # => Alice
 ```
 
 ## Classes and naming
@@ -120,7 +126,7 @@ class Intergalactic::Spaceship < ApplicationRecord
   # whatever
 end
 
-db.intergalactic_spaceships.create :ufo
+@db.intergalactic_spaceships.create :ufo
 
 puts Intergalactic::Spaceship.count # => 1
 ```
@@ -130,13 +136,13 @@ Or maybe you're writing a Rails engine and all your classes are namespaced.  Typ
 So Fabrik lets you register an alternative name for your classes.
 
 ```ruby
-db.configure do
+@db.configure do
   with MyAccountsPackageEngine::Invoice, as: :invoice do
-    defaults due_date: ->(db) { 7.days.from_now }
+    due_date { 7.days.from_now }
   end
 end
 
-db.invoices.create :overdue_invoice, due_date: 1.day.ago
+@invoice = @db.invoices.create
 ```
 
 ## Installation
@@ -151,15 +157,34 @@ If you're only using it for tests, add it to your `test` group.  If you're using
 
 ## Usage
 
-### Localised (for tests)
+### Global
+
+Most of the time, you can use the global `Fabrik.db` instance.  
+
+```ruby
+Fabrik.configure do
+  with Person do
+    first_name { Faker::Name.first_name }
+    last_name { Faker::Name.last_name }
+    email { Faker::Internet.email }
+  end
+end
+
+Fabrik.db.people.create :alice, first_name: "Alice"
+```
+
+Watch out - because this uses a global instance, it's not thread-safe.  That's not an issue if you're just using it for database seeds or in most test runners (single-threaded or parallelised with multiple processes).  But it *might* cause problems if you're using threads to parallelise your tests, or you're reconfiguring while your application is running.
+
+### Localised
 
 Create an instance of a [Fabrik::Database](/lib/fabrik/database.rb), configure it and use it.
 
 ```ruby
-db = Fabrik::Database.new
-db.configure do
+db = Fabrik::Database.new do
   with Person do
-    defaults first_name: ->(db) { Faker::Name.first_name }, last_name: ->(db) { Faker::Name.last_name }, email: ->(db) { Faker::Internet.email }
+    first_name { Faker::Name.first_name }
+    last_name { Faker::Name.last_name }
+    email { Faker::Internet.email }
   end
 end
 
@@ -170,9 +195,8 @@ In an RSpec:
 
 ```ruby
 RSpec.describe "Whatever" do
-  let(:db) { Fabrik::Database.new }
-  before do
-    db.configure do
+  let(:db) do 
+    Fabrik::Database.new do 
       # ... whatever
     end
   end
@@ -181,21 +205,6 @@ end
 
 In a minitest ... I don't know, I've not used minitest in years but I'm sure it's easy enough.
 
-### Global (for seeds and generally creating stuff)
-
-Configure the global `Fabrik::Database`, then use it.
-
-```ruby
-Fabrik.configure do
-  with Person do
-    defaults first_name: ->(db) { Faker::Name.first_name }, last_name: ->(db) { Faker::Name.last_name }, email: ->(db) { Faker::Internet.email }
-  end
-end
-
-Fabrik.db.people.create :alice, first_name: "Alice"
-```
-
-Watch out - because this uses a global instance, it's not thread-safe.  That's not an issue if you're just using it for database seeds or in most test runners(single-threaded or parallelised with multiple processes).  But it *might* cause problems if you're using threads to parallelise your tests, or you're reconfiguring while your application is running.
 
 ## Development
 

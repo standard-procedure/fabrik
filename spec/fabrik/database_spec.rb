@@ -21,21 +21,39 @@ module Fabrik
   end
 
   RSpec.describe Fabrik::Database do
-    subject(:db) { described_class.new }
+    describe ".new" do
+      it "creates the database" do
+        db = described_class.new
+        expect(db).not_to respond_to(:users)
+      end
+
+      it "creates and configures the database" do
+        db = described_class.new do
+          with ::Person, as: :user
+        end
+        expect(db).to respond_to(:users)
+      end
+    end
 
     describe ".configure" do
-      context "registering a simple blueprint" do
-        it "generates proxy methods for accessing the class" do
+      context "simple blueprint" do
+        it "generates proxy methods for the class" do
+          db = described_class.new
+
           db.configure do
-            with ::Person
+            with ::Person do
+              unique :first_name, :last_name
+            end
           end
 
-          expect(db).to respond_to(:people)
+          expect(db.unique_keys_for(::Person)).to include :first_name
         end
       end
 
-      context "registering a blueprint for a namespaced class" do
-        it "generates proxy methods for accessing the class" do
+      context "namespaced class" do
+        it "generates proxy methods for the namespaced, underscored, class" do
+          db = described_class.new
+
           db.configure do
             with Machine
           end
@@ -44,8 +62,10 @@ module Fabrik
         end
       end
 
-      context "registering a blueprint with an alternate name" do
-        it "generates proxy methods for accessing the class" do
+      context "alternate name" do
+        it "generates proxy methods for the alternate, plural, name" do
+          db = described_class.new
+
           db.configure do
             with ::Person, as: :user
           end
@@ -54,11 +74,15 @@ module Fabrik
         end
       end
 
-      context "registering a blueprint with default attributes" do
-        it "records the default attributes for the class" do
+      context "default attributes" do
+        it "records the defaults with the proxy" do
+          db = described_class.new
+
           db.configure do
             with ::Person do
-              defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { "Aardvark" }, age: ->(db) { rand(18..57) }
+              first_name "Alice"
+              last_name "Aardvark"
+              age { rand(18..57) }
             end
           end
 
@@ -66,25 +90,27 @@ module Fabrik
         end
       end
 
-      context "registering a blueprint with search keys" do
-        it "records the search keys for the class" do
+      context "unique keys" do
+        it "records the unique keys with the proxy" do
+          db = described_class.new
+
           db.configure do
             with ::Person do
-              search_using :first_name, :last_name
+              unique :first_name, :last_name
             end
           end
 
-          expect(db.search_keys_for(::Person)).to eq [:first_name, :last_name]
+          expect(db.unique_keys_for(::Person)).to eq [:first_name, :last_name]
         end
       end
 
-      context "registering a blueprint with after_create callback" do
-        it "records the after_create callback for the class" do
+      context "after_create" do
+        it "records the after_create callback with the proxy" do
+          db = described_class.new
+
           db.configure do
             with ::Person do
-              after_create do |person|
-                puts "Hello #{person}"
-              end
+              after_create { |person| puts "Hello #{person}" }
             end
           end
 
@@ -97,14 +123,14 @@ module Fabrik
       subject(:db) { described_class.new }
 
       context "blueprint not registered" do
-        it "creates a new record and stores the reference" do
+        it "registers the class, creates a new record and stores the reference" do
           alice = double("Person", id: 1)
           allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
 
           db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
           expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
-          expect(db.people[:alice]).to eq alice
+          expect(db.people.alice).to eq alice
         end
 
         it "handles different types of class naming" do
@@ -120,22 +146,24 @@ module Fabrik
       end
 
       context "blueprint registered" do
-        it "creates a new record and stores the reference" do
+        it "uses the blueprint to create a new record and stores the reference" do
           alice = double("Person", id: 1)
-          allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+          allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 99).and_return(alice)
 
           db.configure do
-            with ::Person
+            with ::Person do
+              age 99
+            end
           end
-          db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
+          db.people.create :alice, first_name: "Alice", last_name: "Aardvark"
 
-          expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
-          expect(db.people[:alice]).to eq alice
+          expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 99)
+          expect(db.people.alice).to eq alice
         end
       end
 
       context "blueprint registered with an alternate name" do
-        it "creates a new record and stores the reference" do
+        it "uses the blueprint to create a new record and stores the reference" do
           alice = double("Person", id: 1)
           allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
 
@@ -145,44 +173,46 @@ module Fabrik
           db.users.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
           expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
-          expect(db.users[:alice]).to eq alice
+          expect(db.users.alice).to eq alice
         end
       end
 
       context "blueprint registered with default attributes" do
-        it "creates a new record and stores the reference" do
+        it "uses the blueprint to create a new record with default values and stores the reference" do
           arthur = double("Person", id: 1)
           allow(::Person).to receive(:create).with(first_name: "Arthur", last_name: "Aardvark", age: 33).and_return(arthur)
 
           db.configure do
             with ::Person do
-              defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { "Aardvark" }, age: ->(db) { 33 }
+              first_name "Alice"
+              last_name "Aardvark"
+              age 33
             end
           end
           db.people.create :arthur, first_name: "Arthur"
 
           expect(::Person).to have_received(:create).with(first_name: "Arthur", last_name: "Aardvark", age: 33)
-          expect(db.people[:arthur]).to eq arthur
+          expect(db.people.arthur).to eq arthur
         end
       end
 
-      context "blueprint registered with search keys" do
+      context "blueprint registered with unique keys" do
         context "no record found" do
-          it "creates a new record and stores the refeence" do
+          it "uses the blueprint to create a new record and stores the refeence" do
             alice = double("Person", id: 1)
             allow(::Person).to receive(:find_by).with(first_name: "Alice", last_name: "Aardvark").and_return(nil)
             allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
 
             db.configure do
               with ::Person do
-                search_using :first_name, :last_name
+                unique :first_name, :last_name
               end
             end
             db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
             expect(::Person).to have_received(:find_by).with(first_name: "Alice", last_name: "Aardvark")
             expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
-            expect(db.people[:alice]).to eq alice
+            expect(db.people.alice).to eq alice
           end
         end
 
@@ -193,7 +223,7 @@ module Fabrik
 
             db.configure do
               with ::Person do
-                search_using :first_name, :last_name
+                unique :first_name, :last_name
               end
             end
             db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
@@ -203,24 +233,26 @@ module Fabrik
         end
       end
 
-      context "blueprint registered with default attributes and search keys" do
+      context "blueprint registered with default attributes and unique keys" do
         context "no record found" do
-          it "creates a new record and stores the refeence" do
+          it "uses the blueprint to create a new record with default values and stores the refeence" do
             alice = double("Person", id: 1)
             allow(::Person).to receive(:find_by).with(first_name: "Alice", last_name: "Aardvark").and_return(nil)
             allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
 
             db.configure do
               with ::Person do
-                defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { "Aardvark" }, age: ->(db) { 33 }
-                search_using :first_name, :last_name
+                first_name { "Alice" }
+                last_name { "Aardvark" }
+                age 33
+                unique :first_name, :last_name
               end
             end
             db.people.create :alice, first_name: "Alice", age: 25
 
             expect(::Person).to have_received(:find_by).with(first_name: "Alice", last_name: "Aardvark")
             expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
-            expect(db.people[:alice]).to eq alice
+            expect(db.people.alice).to eq alice
           end
         end
 
@@ -231,8 +263,10 @@ module Fabrik
 
             db.configure do
               with ::Person do
-                defaults first_name: ->(db) { "Alice" }, last_name: ->(db) { "Aardvark" }, age: ->(db) { 33 }
-                search_using :first_name, :last_name
+                first_name "Arthur"
+                last_name "Aardvark"
+                age 33
+                unique :first_name, :last_name
               end
             end
             db.people.create :alice, first_name: "Alice", age: 25
@@ -243,7 +277,7 @@ module Fabrik
       end
 
       context "blueprint registered with after_create callback" do
-        it "creates a new record and fires the callback" do
+        it "uses the blueprint to create a new record and fires the callback" do
           alice = double("Person", id: 1, first_name: "Alice")
           alices_company = double("Company", id: 1)
           allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
@@ -252,16 +286,14 @@ module Fabrik
           db.configure do
             with ::Company
             with ::Person do
-              after_create do |person, db|
-                db.companies.create :alices_company, name: "#{person.first_name}'s Company"
-              end
+              after_create { |person| companies.create :alices_company, name: "#{person.first_name}'s Company" }
             end
           end
           db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
           expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
           expect(::Company).to have_received(:create).with(name: "Alice's Company")
-          expect(db.companies[:alices_company]).to eq alices_company
+          expect(db.companies.alices_company).to eq alices_company
         end
 
         it "does not fire the callback if an existing record is found" do
@@ -273,10 +305,8 @@ module Fabrik
 
           db.configure do
             with ::Person do
-              search_using :first_name, :last_name
-              after_create do |person, db|
-                db.companies.create :alices_company, name: "#{person.first_name}'s Company"
-              end
+              unique :first_name, :last_name
+              after_create { |person| companies.create :alices_company, name: "#{person.first_name}'s Company" }
             end
           end
           db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
