@@ -126,30 +126,30 @@ module Fabrik
       context "blueprint not registered" do
         it "registers the class, creates a new record and stores the reference" do
           alice = double("Person", id: 1)
-          allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+          allow(::Person).to receive(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
 
           db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
-          expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
+          expect(::Person).to have_received(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25)
           expect(db.people.alice).to eq alice
         end
 
         it "handles different types of class naming" do
-          allow(::Intergalactic::Spaceship).to receive(:create).and_return(double("Intergalactic::Spaceship", id: 1))
-          allow(::InterplanetarySpaceship).to receive(:create).and_return(double("InterplanetarySpaceship", id: 1))
+          allow(::Intergalactic::Spaceship).to receive(:create!).and_return(double("Intergalactic::Spaceship", id: 1))
+          allow(::InterplanetarySpaceship).to receive(:create!).and_return(double("InterplanetarySpaceship", id: 1))
 
           db.intergalactic_spaceships.create :discovery
           db.interplanetary_spaceships.create :enterprise
 
-          expect(::Intergalactic::Spaceship).to have_received(:create)
-          expect(::InterplanetarySpaceship).to have_received(:create)
+          expect(::Intergalactic::Spaceship).to have_received(:create!)
+          expect(::InterplanetarySpaceship).to have_received(:create!)
         end
       end
 
       context "blueprint registered" do
         it "uses the blueprint to create a new record and stores the reference" do
           alice = double("Person", id: 1)
-          allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 99).and_return(alice)
+          allow(::Person).to receive(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 99).and_return(alice)
 
           db.configure do
             with ::Person do
@@ -158,7 +158,7 @@ module Fabrik
           end
           db.people.create :alice, first_name: "Alice", last_name: "Aardvark"
 
-          expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 99)
+          expect(::Person).to have_received(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 99)
           expect(db.people.alice).to eq alice
         end
       end
@@ -166,14 +166,14 @@ module Fabrik
       context "blueprint registered with an alternate name" do
         it "uses the blueprint to create a new record and stores the reference" do
           alice = double("Person", id: 1)
-          allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+          allow(::Person).to receive(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
 
           db.configure do
             with ::Person, as: :user
           end
           db.users.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
-          expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
+          expect(::Person).to have_received(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25)
           expect(db.users.alice).to eq alice
         end
       end
@@ -181,7 +181,7 @@ module Fabrik
       context "blueprint registered with default attributes" do
         it "uses the blueprint to create a new record with default values and stores the reference" do
           arthur = double("Person", id: 1)
-          allow(::Person).to receive(:create).with(first_name: "Arthur", last_name: "Aardvark", age: 33, email: kind_of(String)).and_return(arthur)
+          allow(::Person).to receive(:create!).with(first_name: "Arthur", last_name: "Aardvark", age: 33, email: kind_of(String)).and_return(arthur)
 
           db.configure do
             with ::Person do
@@ -193,7 +193,7 @@ module Fabrik
           end
           db.people.create :arthur, first_name: "Arthur"
 
-          expect(::Person).to have_received(:create).with(first_name: "Arthur", last_name: "Aardvark", age: 33, email: kind_of(String))
+          expect(::Person).to have_received(:create!).with(first_name: "Arthur", last_name: "Aardvark", age: 33, email: kind_of(String))
           expect(db.people.arthur).to eq arthur
         end
       end
@@ -203,7 +203,7 @@ module Fabrik
           it "uses the blueprint to create a new record and stores the refeence" do
             alice = double("Person", id: 1)
             allow(::Person).to receive(:find_by).with(first_name: "Alice", last_name: "Aardvark").and_return(nil)
-            allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+            allow(::Person).to receive(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
 
             db.configure do
               with ::Person do
@@ -213,7 +213,7 @@ module Fabrik
             db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
             expect(::Person).to have_received(:find_by).with(first_name: "Alice", last_name: "Aardvark")
-            expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
+            expect(::Person).to have_received(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25)
             expect(db.people.alice).to eq alice
           end
         end
@@ -240,7 +240,7 @@ module Fabrik
           it "uses the blueprint to create a new record with default values and stores the refeence" do
             alice = double("Person", id: 1)
             allow(::Person).to receive(:find_by).with(first_name: "Alice", last_name: "Aardvark").and_return(nil)
-            allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+            allow(::Person).to receive(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
 
             db.configure do
               with ::Person do
@@ -253,7 +253,7 @@ module Fabrik
             db.people.create :alice, first_name: "Alice", age: 25
 
             expect(::Person).to have_received(:find_by).with(first_name: "Alice", last_name: "Aardvark")
-            expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
+            expect(::Person).to have_received(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25)
             expect(db.people.alice).to eq alice
           end
         end
@@ -282,8 +282,8 @@ module Fabrik
         it "uses the blueprint to create a new record and fires the callback" do
           alice = double("Person", id: 1, first_name: "Alice")
           alices_company = double("Company", id: 1)
-          allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
-          allow(::Company).to receive(:create).with(name: "Alice's Company").and_return(alices_company)
+          allow(::Person).to receive(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+          allow(::Company).to receive(:create!).with(name: "Alice's Company").and_return(alices_company)
 
           db.configure do
             with ::Company
@@ -293,17 +293,17 @@ module Fabrik
           end
           db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
-          expect(::Person).to have_received(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25)
-          expect(::Company).to have_received(:create).with(name: "Alice's Company")
+          expect(::Person).to have_received(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25)
+          expect(::Company).to have_received(:create!).with(name: "Alice's Company")
           expect(db.companies.alices_company).to eq alices_company
         end
 
         it "does not fire the callback if an existing record is found" do
           alice = double("Person", id: 1)
           allow(::Person).to receive(:find_by).with(first_name: "Alice", last_name: "Aardvark").and_return(alice)
-          allow(::Person).to receive(:create).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+          allow(::Person).to receive(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
           alices_company = double("Company", id: 1)
-          allow(::Company).to receive(:create).with(name: "Alice's Company").and_return(alices_company)
+          allow(::Company).to receive(:create!).with(name: "Alice's Company").and_return(alices_company)
 
           db.configure do
             with ::Person do
@@ -313,7 +313,7 @@ module Fabrik
           end
           db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25
 
-          expect(::Company).to_not have_received(:create).with(name: "Alice's Company")
+          expect(::Company).to_not have_received(:create!).with(name: "Alice's Company")
         end
       end
     end

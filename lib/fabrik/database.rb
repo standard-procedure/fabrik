@@ -83,6 +83,7 @@ module Fabrik
         @records[label.to_sym] = record if label
       end
     end
+    alias_method :create!, :create
 
     def method_missing(method_name, *args, &block)
       @records[method_name.to_sym]
@@ -111,7 +112,7 @@ module Fabrik
     private def find_record(attributes) = attributes.slice(*unique_keys).empty? ? nil : klass.find_by(**attributes.slice(*unique_keys))
 
     private def create_record(attributes)
-      klass.create(**attributes_with_defaults(attributes)).tap do |record|
+      klass.create!(**attributes_with_defaults(attributes)).tap do |record|
         @blueprint.call_after_create(record, @db)
       end
     end
