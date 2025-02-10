@@ -11,14 +11,13 @@ module Fabrik
     def register(klass, as: nil, &block)
       blueprint_name = (as.nil? ? blueprint_name_for(klass) : as.to_s.pluralize).to_sym
       blueprint = Blueprint.new(klass, &block)
-      @blueprints[blueprint_name] = blueprint
-      @blueprints[klass] = blueprint
+      set_blueprint_for(blueprint_name, blueprint)
 
       define_singleton_method blueprint_name do
-        proxy_for(blueprint_name)
+        proxy_for blueprint_name
       end
 
-      proxy_for(blueprint_name)
+      proxy_for blueprint_name
     end
     alias_method :with, :register
 
@@ -34,14 +33,21 @@ module Fabrik
 
     def initialize &config
       @blueprints = {}
-      @records = {}
+      @proxies = {}
       instance_eval(&config) unless config.nil?
     end
 
     private def blueprint_name_for(klass) = klass.name.split("::").map(&:underscore).join("_").pluralize
 
-    private def proxy_for(blueprint_name)
-      @records[blueprint_name] ||= Proxy.new(self, @blueprints[blueprint_name])
+    private def proxy_for(klass_or_blueprint_name)
+      blueprint_name = klass_or_blueprint_name.is_a?(Class) ? blueprint_name_for(klass_or_blueprint_name) : klass_or_blueprint_name
+      @proxies[blueprint_name.to_sym] ||= Proxy.new(self, @blueprints[blueprint_name])
+    end
+
+    private def set_blueprint_for(name, blueprint)
+      @blueprints[name] = blueprint
+      @blueprints[blueprint.klass] = blueprint
+      proxy_for(name).blueprint = blueprint
     end
 
     private def class_from(method_name)
@@ -69,6 +75,8 @@ module Fabrik
 
     def respond_to_missing?(method_name, include_private = false) = @default_attributes.key?(method_name.to_sym) || super
 
+    def to_s = "#{klass} blueprint (#{object_id}) (#{default_attributes.keys.size} defaults, #{unique_keys.size} unique keys #{(!callback.nil?) ? "with callback" : ""})"
+
     def initialize(klass, &block)
       @klass = klass
       @default_attributes = {}
@@ -80,16 +88,22 @@ module Fabrik
   class Proxy < SimpleDelegator
     def create(label = nil, **attributes)
       (@blueprint.unique_keys.any? ? find_or_create_record(attributes) : create_record(attributes)).tap do |record|
-        @records[label.to_sym] = record if label
+        self[label] = record if label
       end
     end
     alias_method :create!, :create
 
-    def method_missing(method_name, *args, &block)
-      @records[method_name.to_sym]
+    def [](label) = @records[label.to_sym]
+
+    def []=(label, record)
+      @records[label.to_sym] = record
     end
 
-    def respond_to_missing?(method_name, include_private = false) = @@records.key?(label.to_sym) || super
+    def method_missing(method_name, *args, &block) = self[method_name.to_sym] || super
+
+    def respond_to_missing?(method_name, include_private = false) = !self[method_name].nil? || super
+
+    def to_s = "Proxy #{object_id} for #{@blueprint} (#{@records.keys.size} records)"
 
     def initialize(db, blueprint)
       @db = db
@@ -97,6 +111,8 @@ module Fabrik
       @records = {}
       super(klass)
     end
+
+    attr_accessor :blueprint
 
     private def unique_keys = @blueprint.unique_keys
 

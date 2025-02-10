@@ -317,5 +317,48 @@ module Fabrik
         end
       end
     end
+
+    describe "proxies" do
+      it "creates a proxy for a given class" do
+        db = Fabrik::Database.new
+
+        people = db.people
+
+        expect(people).to be_a(Fabrik::Proxy)
+        expect(people).to eq db.send(:proxy_for, :people)
+        expect(people).to eq db.send(:proxy_for, ::Person)
+      end
+
+      it "returns the same proxy after reconfiguration" do
+        db = Fabrik::Database.new
+        people = db.people
+        original_blueprint = people.blueprint
+
+        db.configure do
+          with Person do
+            unique :first_name, :last_name
+          end
+        end
+
+        expect(people).to eq db.people
+        expect(db.people.blueprint).to_not eq original_blueprint
+      end
+
+      it "finds an existing record based upon its label" do
+        db = Fabrik::Database.new
+        alice = double("Person", id: 1)
+        db.people[:alice] = alice
+
+        expect(db.people[:alice]).to eq alice
+      end
+
+      it "finds an existing record using method missing" do
+        db = Fabrik::Database.new
+        alice = double("Person", id: 1)
+        db.people[:alice] = alice
+
+        expect(db.people.alice).to eq alice
+      end
+    end
   end
 end
