@@ -4,10 +4,7 @@ require_relative "fabrik/version"
 require_relative "fabrik/database"
 
 module Fabrik
-  def self.configure(&block)
-    @db ||= Database.new
-    @db.configure(&block)
-  end
+  def self.configure(&block) = db.configure(&block)
 
-  def self.db = @db
+  def self.db = @db ||= Database.new
 end
