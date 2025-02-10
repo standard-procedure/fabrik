@@ -315,6 +315,24 @@ module Fabrik
 
           expect(::Company).to_not have_received(:create!).with(name: "Alice's Company")
         end
+
+        it "does not fire the callback if not required" do
+          alice = double("Person", id: 1, first_name: "Alice")
+          alices_company = double("Company", id: 1)
+          allow(::Person).to receive(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25).and_return(alice)
+          allow(::Company).to receive(:create!).with(name: "Alice's Company").and_return(alices_company)
+
+          db.configure do
+            with ::Company
+            with ::Person do
+              after_create { |person| companies.create :alices_company, name: "#{person.first_name}'s Company" }
+            end
+          end
+          db.people.create :alice, first_name: "Alice", last_name: "Aardvark", age: 25, after_create: false
+
+          expect(::Person).to have_received(:create!).with(first_name: "Alice", last_name: "Aardvark", age: 25)
+          expect(::Company).to_not have_received(:create!)
+        end
       end
     end
 

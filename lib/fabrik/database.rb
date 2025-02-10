@@ -86,8 +86,8 @@ module Fabrik
   end
 
   class Proxy < SimpleDelegator
-    def create(label = nil, **attributes)
-      (@blueprint.unique_keys.any? ? find_or_create_record(attributes) : create_record(attributes)).tap do |record|
+    def create(label = nil, after_create: true, **attributes)
+      (@blueprint.unique_keys.any? ? find_or_create_record(attributes, callback: after_create) : create_record(attributes, callback: after_create)).tap do |record|
         self[label] = record if label
       end
     end
@@ -120,16 +120,16 @@ module Fabrik
 
     private def default_attributes = @blueprint.default_attributes
 
-    private def find_or_create_record(attributes)
+    private def find_or_create_record(attributes, callback:)
       attributes = attributes_with_defaults(attributes)
-      find_record(attributes) || create_record(attributes)
+      find_record(attributes) || create_record(attributes, callback: callback)
     end
 
     private def find_record(attributes) = attributes.slice(*unique_keys).empty? ? nil : klass.find_by(**attributes.slice(*unique_keys))
 
-    private def create_record(attributes)
+    private def create_record(attributes, callback:)
       klass.create!(**attributes_with_defaults(attributes)).tap do |record|
-        @blueprint.call_after_create(record, @db)
+        @blueprint.call_after_create(record, @db) if callback
       end
     end
 
