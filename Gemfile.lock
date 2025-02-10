@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    standard_procedure_fabrik (0.2.3)
+    standard_procedure_fabrik (0.2.4)
       activesupport (>= 6.0.0)
       ostruct
 
