@@ -10,7 +10,7 @@ module Fabrik
 
     def register(klass, as: nil, &configuration)
       blueprint_name = (as.nil? ? blueprint_name_for(klass) : as.to_s.pluralize).to_sym
-      @proxies[blueprint_name] ||= build_proxy_for(blueprint_name, klass)
+      @proxies[blueprint_name] ||= Proxy.new(self, Blueprint.new(klass))
       @proxies[blueprint_name].configure(&configuration)
       @proxies[blueprint_name]
     end
@@ -45,10 +45,6 @@ module Fabrik
       name = name.sub!(/(?<=[a-z])(?=[A-Z])/, "::") until name.nil? || (klass = name.safe_constantize)
       klass
     end
-
-    private def build_proxy_for blueprint_name, klass
-      Proxy.new self, Blueprint.new(klass)
-    end
   end
 
   class Blueprint
@@ -78,7 +74,6 @@ module Fabrik
 
     def configure(&configuration)
       instance_eval(&configuration) unless configuration.nil?
-      self
     end
   end
 
@@ -103,7 +98,7 @@ module Fabrik
     def to_s = "Proxy #{object_id} for #{@blueprint} (#{@records.keys.size} records)"
 
     def configure(&configuration)
-      blueprint.configure(&configuration) unless configuration.nil?
+      @blueprint.configure(&configuration) unless configuration.nil?
     end
 
     attr_accessor :blueprint

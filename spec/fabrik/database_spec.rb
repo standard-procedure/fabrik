@@ -386,6 +386,23 @@ module Fabrik
         expect(db.people.unique_keys).to eq [:first_name, :last_name]
       end
 
+      it "creates two proxies with separate blueprints if an alias is used" do
+        db = Fabrik::Database.new
+        people = db.people
+        original_blueprint = people.blueprint
+
+        db.configure do
+          with Person, as: :user do
+            unique :first_name, :last_name
+          end
+        end
+
+        expect(people).to_not eq db.users
+        expect(db.users.blueprint).to_not eq original_blueprint
+        expect(db.users.unique_keys).to eq [:first_name, :last_name]
+        expect(db.people.unique_keys).to_not eq [:first_name, :last_name]
+      end
+
       it "finds an existing record based upon its label" do
         db = Fabrik::Database.new
         alice = double("Person", id: 1)
