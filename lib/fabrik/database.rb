@@ -6,55 +6,48 @@ require "ostruct"
 
 module Fabrik
   class Database
-    def configure(&block) = instance_eval(&block)
+    def configure(&configuration) = instance_eval(&configuration)
 
-    def register(klass, as: nil, &block)
+    def register(klass, as: nil, &configuration)
       blueprint_name = (as.nil? ? blueprint_name_for(klass) : as.to_s.pluralize).to_sym
-      blueprint = Blueprint.new(klass, &block)
-      set_blueprint_for(blueprint_name, blueprint)
-
-      define_singleton_method blueprint_name do
-        proxy_for blueprint_name
-      end
-
-      proxy_for blueprint_name
+      @proxies[blueprint_name] ||= build_proxy_for(blueprint_name, klass)
+      @proxies[blueprint_name].configure(&configuration)
+      @proxies[blueprint_name]
     end
     alias_method :with, :register
 
-    def defaults_for(klass) = @blueprints[klass].default_attributes
+    def defaults_for(klass) = proxy_for(klass).default_attributes
 
-    def unique_keys_for(klass) = @blueprints[klass].unique_keys
+    def unique_keys_for(klass) = proxy_for(klass).unique_keys
 
-    def after_create_for(klass) = @blueprints[klass].callback
+    def after_create_for(klass) = proxy_for(klass).callback
 
-    def method_missing(method_name, *, &block) = (klass = class_from(method_name)).nil? ? super : register(klass)
+    def method_missing(method_name, *, &block)
+      @proxies[method_name] || ((klass = class_from(method_name)).nil? ? super : register(klass))
+    end
 
-    def respond_to_missing?(method_name, include_private = false) = !class_from(method_name).nil? || super
+    def respond_to_missing?(method_name, include_private = false)
+      @proxies.key?(method_name) || !class_from(method_name).nil? || super
+    end
 
     def initialize &config
-      @blueprints = {}
       @proxies = {}
       instance_eval(&config) unless config.nil?
     end
 
     private def blueprint_name_for(klass) = klass.name.split("::").map(&:underscore).join("_").pluralize
 
-    private def proxy_for(klass_or_blueprint_name)
-      blueprint_name = klass_or_blueprint_name.is_a?(Class) ? blueprint_name_for(klass_or_blueprint_name) : klass_or_blueprint_name
-      @proxies[blueprint_name.to_sym] ||= Proxy.new(self, @blueprints[blueprint_name])
-    end
-
-    private def set_blueprint_for(name, blueprint)
-      @blueprints[name] = blueprint
-      @blueprints[blueprint.klass] = blueprint
-      proxy_for(name).blueprint = blueprint
-    end
+    private def proxy_for(klass) = @proxies.values.find { |proxy| proxy.klass == klass }
 
     private def class_from(method_name)
       klass = nil
       name = method_name.to_s.singularize.classify
       name = name.sub!(/(?<=[a-z])(?=[A-Z])/, "::") until name.nil? || (klass = name.safe_constantize)
       klass
+    end
+
+    private def build_proxy_for blueprint_name, klass
+      Proxy.new self, Blueprint.new(klass)
     end
   end
 
@@ -77,11 +70,15 @@ module Fabrik
 
     def to_s = "#{klass} blueprint (#{object_id}) (#{default_attributes.keys.size} defaults, #{unique_keys.size} unique keys #{(!callback.nil?) ? "with callback" : ""})"
 
-    def initialize(klass, &block)
+    def initialize(klass)
       @klass = klass
       @default_attributes = {}
       @unique_keys = []
-      instance_eval(&block) unless block.nil?
+    end
+
+    def configure(&configuration)
+      instance_eval(&configuration) unless configuration.nil?
+      self
     end
   end
 
@@ -105,20 +102,26 @@ module Fabrik
 
     def to_s = "Proxy #{object_id} for #{@blueprint} (#{@records.keys.size} records)"
 
+    def configure(&configuration)
+      blueprint.configure(&configuration) unless configuration.nil?
+    end
+
+    attr_accessor :blueprint
+
+    def unique_keys = @blueprint.unique_keys
+
+    def klass = @blueprint.klass
+
+    def default_attributes = @blueprint.default_attributes
+
+    def callback = @blueprint.callback
+
     def initialize(db, blueprint)
       @db = db
       @blueprint = blueprint
       @records = {}
       super(klass)
     end
-
-    attr_accessor :blueprint
-
-    private def unique_keys = @blueprint.unique_keys
-
-    private def klass = @blueprint.klass
-
-    private def default_attributes = @blueprint.default_attributes
 
     private def find_or_create_record(attributes, callback:)
       attributes = attributes_with_defaults(attributes)

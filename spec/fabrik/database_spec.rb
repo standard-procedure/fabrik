@@ -51,6 +51,30 @@ module Fabrik
         end
       end
 
+      context "reconfiguring blueprints" do
+        it "reuses the original blueprint" do
+          db = described_class.new
+
+          db.configure do
+            with ::Person do
+              unique :first_name, :last_name
+            end
+          end
+
+          original_blueprint = db.people.blueprint
+
+          db.configure do
+            with ::Person do
+              first_name "Bob"
+            end
+          end
+
+          updated_blueprint = db.people.blueprint
+
+          expect(updated_blueprint.object_id).to eq original_blueprint.object_id
+        end
+      end
+
       context "namespaced class" do
         it "generates proxy methods for the namespaced, underscored, class" do
           db = described_class.new
@@ -111,7 +135,7 @@ module Fabrik
 
           db.configure do
             with ::Person do
-              after_create { |person| puts "Hello #{person}" }
+              after_create { |person| "Hello #{person}" }
             end
           end
 
@@ -343,8 +367,7 @@ module Fabrik
         people = db.people
 
         expect(people).to be_a(Fabrik::Proxy)
-        expect(people).to eq db.send(:proxy_for, :people)
-        expect(people).to eq db.send(:proxy_for, ::Person)
+        expect(people.klass).to eq ::Person
       end
 
       it "returns the same proxy after reconfiguration" do
@@ -359,7 +382,8 @@ module Fabrik
         end
 
         expect(people).to eq db.people
-        expect(db.people.blueprint).to_not eq original_blueprint
+        expect(db.people.blueprint).to eq original_blueprint
+        expect(db.people.unique_keys).to eq [:first_name, :last_name]
       end
 
       it "finds an existing record based upon its label" do
