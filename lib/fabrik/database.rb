@@ -22,6 +22,8 @@ module Fabrik
 
     def after_create_for(klass) = proxy_for(klass).callback
 
+    def functions_for(klass) = proxy_for(klass).functions
+
     def method_missing(method_name, *, &block)
       @proxies[method_name] || ((klass = class_from(method_name)).nil? ? super : register(klass))
     end
@@ -48,7 +50,14 @@ module Fabrik
   end
 
   class Blueprint
-    attr_reader :klass, :default_attributes, :unique_keys, :callback
+    def initialize(klass)
+      @klass = klass
+      @default_attributes = {}
+      @unique_keys = []
+      @functions = {}
+    end
+
+    attr_reader :klass, :default_attributes, :unique_keys, :callback, :functions
 
     def defaults(**default_attributes) = @default_attributes = default_attributes
 
@@ -58,6 +67,8 @@ module Fabrik
 
     def call_after_create(record, db) = @callback.nil? ? nil : db.instance_exec(record, &@callback)
 
+    def function(name, &implementation) = @functions[name.to_sym] = implementation
+
     def method_missing(method_name, *args, &block)
       @default_attributes[method_name.to_sym] = args.first.nil? ? block : ->(_) { args.first }
     end
@@ -66,18 +77,20 @@ module Fabrik
 
     def to_s = "#{klass} blueprint (#{object_id}) (#{default_attributes.keys.size} defaults, #{unique_keys.size} unique keys #{(!callback.nil?) ? "with callback" : ""})"
 
-    def initialize(klass)
-      @klass = klass
-      @default_attributes = {}
-      @unique_keys = []
-    end
-
     def configure(&configuration)
       instance_eval(&configuration) unless configuration.nil?
     end
   end
 
   class Proxy < SimpleDelegator
+    def initialize(db, blueprint)
+      @db = db
+      @blueprint = blueprint
+      @records = {}
+      super(klass)
+    end
+    attr_accessor :blueprint
+
     def create(label = nil, after_create: true, **attributes)
       (@blueprint.unique_keys.any? ? find_or_create_record(attributes, callback: after_create) : create_record(attributes, callback: after_create)).tap do |record|
         self[label] = record if label
@@ -91,17 +104,15 @@ module Fabrik
       @records[label.to_sym] = record
     end
 
-    def method_missing(method_name, *args, &block) = self[method_name.to_sym] || super
+    def method_missing(method_name, *args, &block) = self[method_name] || call_function(method_name, *args) || super
 
-    def respond_to_missing?(method_name, include_private = false) = !self[method_name].nil? || super
+    def respond_to_missing?(method_name, include_private = false) = !self[method_name].nil? || !functions[method_name].nil? || super
 
     def to_s = "Proxy #{object_id} for #{@blueprint} (#{@records.keys.size} records)"
 
     def configure(&configuration)
       @blueprint.configure(&configuration) unless configuration.nil?
     end
-
-    attr_accessor :blueprint
 
     def unique_keys = @blueprint.unique_keys
 
@@ -111,12 +122,7 @@ module Fabrik
 
     def callback = @blueprint.callback
 
-    def initialize(db, blueprint)
-      @db = db
-      @blueprint = blueprint
-      @records = {}
-      super(klass)
-    end
+    def functions = @blueprint.functions
 
     private def find_or_create_record(attributes, callback:)
       attributes = attributes_with_defaults(attributes)
@@ -136,6 +142,10 @@ module Fabrik
       attributes_to_generate.each_with_object(OpenStruct.new(**attributes)) do |name, generated_attributes|
         generated_attributes[name] = default_attributes[name].nil? ? nil : @db.instance_exec(generated_attributes, &default_attributes[name])
       end.to_h.merge(attributes)
+    end
+
+    private def call_function(method_name, *args)
+      functions[method_name].nil? ? nil : @db.instance_exec(*args, &functions[method_name])
     end
   end
 end

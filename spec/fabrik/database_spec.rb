@@ -142,6 +142,22 @@ module Fabrik
           expect(db.after_create_for(::Person)).to_not be_nil
         end
       end
+
+      context "functions" do
+        it "registers a function" do
+          db = described_class.new
+
+          db.configure do
+            with ::Person do
+              function :add_many do |count|
+                count.times { people.create }
+              end
+            end
+          end
+
+          expect(db.functions_for(::Person)[:add_many]).to_not be_nil
+        end
+      end
     end
 
     describe "#create" do
@@ -417,6 +433,31 @@ module Fabrik
         db.people[:alice] = alice
 
         expect(db.people.alice).to eq alice
+      end
+    end
+
+    describe "functions" do
+      subject(:db) { described_class.new }
+
+      it "calls the defined function" do
+        db.configure do
+          with ::Person do
+            function(:double) { |count| count * 2 }
+          end
+        end
+
+        expect(db.people.double(2)).to eq 4
+      end
+
+      it "executes in the context of the Database" do
+        allow(db).to receive(:ping).and_return(:pong)
+        db.configure do
+          with ::Person do
+            function(:ping) { ping }
+          end
+        end
+
+        expect(db.people.ping).to eq :pong
       end
     end
   end

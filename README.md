@@ -109,6 +109,32 @@ end
 puts Company.find_by(name: "MegaCorp").employees.size # => 1
 ```
 
+Or if you need more control, you can define functions that work within the scope of the factory.  
+
+```ruby
+@db.configure do
+  with Company do
+    name { Faker::Company.name }
+
+    function(:create_with_employees) do |name = nil, employee_count: 1|
+      companies.create(name: name).tap do |company|
+        employee_count.times { employees.create company: company }
+      end
+    end 
+
+  end
+  with Employee do
+    first_name { Faker::Name.first_name }
+    last_name  { Faker::Name.last_name }
+    role "Cleaner"
+  end
+end
+@db.companies.create name: "TinyCo"
+puts Company.find_by(name: "TinyCo").employees.size # => 0
+@db.companies.create_with_company name: "MegaCorp", employee_count: 4
+puts Company.find_by(name: "MegaCorp").employees.size # => 4
+```
+
 ## References
 
 You've created a load of models.  And you need to reference them to create more models.  You could search for them by hand, but that's for chumps.
